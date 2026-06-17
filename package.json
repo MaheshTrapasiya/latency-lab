@@ -14,16 +14,16 @@
     "simulation",
     "fault-injection"
   ],
-  "author": "latency-lab contributors",
+  "author": "Mahesh Trapasiya",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/latency-lab.git"
+    "url": "https://github.com/MaheshTrapasiya/latency-lab.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/latency-lab/issues"
+    "url": "https://github.com/MaheshTrapasiya/latency-lab/issues"
   },
-  "homepage": "https://github.com/your-org/latency-lab#readme",
+  "homepage": "https://github.com/MaheshTrapasiya/latency-lab#readme",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",

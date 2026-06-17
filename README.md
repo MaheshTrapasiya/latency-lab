@@ -416,6 +416,19 @@ No. It only affects standard HTTP request/response cycles.
 
 ---
 
+## Contributing
+
+Contributions are welcome! Please follow these steps to contribute:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bugfix.
+3. Make your changes and ensure tests pass.
+4. Submit a pull request with a clear description of your changes.
+
+For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
 ## License
 
-MIT © latency-lab contributors
+MIT © Mahesh Trapasiya
