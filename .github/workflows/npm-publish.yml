@@ -4,8 +4,14 @@
 name: Node.js Package
 
 on:
-  release:
-    types: [created]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: npm-publish-main
+  cancel-in-progress: true
 
 jobs:
   build:

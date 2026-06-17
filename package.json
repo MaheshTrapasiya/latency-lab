@@ -107,7 +107,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "version:minor": "npm version minor --no-git-tag-version",
+    "version:minor": "node scripts/bump-minor-version.mjs",
     "prepublishOnly": "npm run version:minor && npm run build:check && npm run lint && npm run test",
     "prepack": "npm run build",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
