@@ -1,4 +1,4 @@
-# This workflow will run tests using node and then publish a package to npm using Trusted Publishers (OIDC)
+# This workflow will run tests using node and then publish a public package to npm.
 # For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
 
 name: Node.js Package
@@ -11,10 +11,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
       - run: npm ci
       - run: npm test
 
@@ -28,12 +28,14 @@ jobs:
       contents: read
       
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org/
+          package-manager-cache: false
       - run: npm ci
       
-      # 2. Run npm publish without the NODE_AUTH_TOKEN environment variable
-      - run: npm publish --provenance
+      - run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.npm_token }}
