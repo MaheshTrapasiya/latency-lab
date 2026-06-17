@@ -18,7 +18,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MaheshTrapasiya/latency-lab.git"
+    "url": "git+https://github.com/MaheshTrapasiya/latency-lab.git"
   },
   "bugs": {
     "url": "https://github.com/MaheshTrapasiya/latency-lab/issues"
@@ -79,7 +79,18 @@
         "types": "./dist/presets.d.cts",
         "default": "./dist/presets.cjs"
       }
-    }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/types.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -96,8 +107,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build:check && npm run lint && npm run test && npm run build",
-    "clean": "rm -rf dist"
+    "version:minor": "npm version minor --no-git-tag-version",
+    "prepublishOnly": "npm run version:minor && npm run build:check && npm run lint && npm run test",
+    "prepack": "npm run build",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
