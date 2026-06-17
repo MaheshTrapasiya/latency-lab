@@ -126,7 +126,7 @@ export function chaosMiddleware(options: MiddlewareOptions): ConnectMiddleware {
   const middleware: ConnectMiddleware = (req, res, next) => {
     // Async work is wrapped in an IIFE so the middleware signature stays
     // synchronous (required by Connect) while still using async/await internally.
-    (async () => {
+    (async (): Promise<void> => {
       const pathname = req.url ?? '/';
 
       // --- Route exclusion -------------------------------------------------

@@ -163,8 +163,8 @@ describe('calculateDelay', () => {
   });
 
   it('returns exactly baseDelay when jitter is 0 and no wavePeriod', () => {
-    const { wavePeriod: _wp, ...rest } = baseOptions;
-    const opts: ChaosOptions = { ...rest, jitter: 0 };
+    const opts: ChaosOptions = { ...baseOptions, jitter: 0 };
+    delete opts.wavePeriod;
     // With zero jitter and no wave, delay must always equal baseDelay
     for (let i = 0; i < 50; i++) {
       expect(calculateDelay(opts)).toBe(opts.baseDelay);
@@ -174,8 +174,8 @@ describe('calculateDelay', () => {
   it('stays within a reasonable jitter band', () => {
     // With no wave, delay ≈ baseDelay ± jitter.
     // We use a wide sample to account for randomness.
-    const { wavePeriod: _wp, ...rest } = baseOptions;
-    const opts: ChaosOptions = { ...rest, jitter: 100 };
+    const opts: ChaosOptions = { ...baseOptions, jitter: 100 };
+    delete opts.wavePeriod;
     for (let i = 0; i < 500; i++) {
       const d = calculateDelay(opts);
       // jitter band: [baseDelay - jitter, baseDelay + jitter]
