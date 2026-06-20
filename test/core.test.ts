@@ -119,6 +119,21 @@ describe('validateChaosOptions', () => {
     ).toThrow(ChaosConfigError);
   });
 
+  it.each([
+    ['jitter', 'fast'],
+    ['jitter', Infinity],
+    ['wavePeriod', 'slow'],
+    ['wavePeriod', NaN],
+    ['failureRate', 'often'],
+    ['failureRate', Infinity],
+    ['failureType', 503],
+    ['errorCodes', '503'],
+  ])('rejects malformed %s values', (field, value) => {
+    expect(() =>
+      validateChaosOptions({ ...baseOptions, [field]: value }),
+    ).toThrow(ChaosConfigError);
+  });
+
   it('rejects wavePeriod of 0', () => {
     expect(() =>
       validateChaosOptions({ ...baseOptions, wavePeriod: 0 }),
@@ -176,6 +191,9 @@ describe('validateChaosOptions', () => {
   it('rejects non-integer HTTP status codes', () => {
     expect(() =>
       validateChaosOptions({ ...baseOptions, errorCodes: [503.5] }),
+    ).toThrow(ChaosConfigError);
+    expect(() =>
+      validateChaosOptions({ ...baseOptions, errorCodes: ['503'] }),
     ).toThrow(ChaosConfigError);
   });
 

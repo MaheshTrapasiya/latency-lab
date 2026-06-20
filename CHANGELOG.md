@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1] - 2026-06-20
+
+### Changed
+
+- Added real Fastify and Hono integration tests.
+- Added ESM, CommonJS, subpath export, and npm package smoke tests.
+- Raised enforced coverage thresholds to protect published behavior.
+- Expanded malformed configuration and adapter edge-case coverage.
+
 ## [1.1.0] - 2026-06-20
 
 ### Added

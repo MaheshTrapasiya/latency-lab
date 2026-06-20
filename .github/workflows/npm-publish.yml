@@ -43,3 +43,5 @@ jobs:
 
       - name: Publish with npm Trusted Publishing
         run: npm publish --access public
+        env:
+          VERSION_BUMP: patch

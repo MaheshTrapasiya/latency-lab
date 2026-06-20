@@ -164,6 +164,28 @@ describe('chaosMiddleware', () => {
     expect(res._statusCode).toBe(503);
   });
 
+  it('forwards unexpected response errors to next', async () => {
+    const middleware = chaosMiddleware(alwaysFailHttpOptions);
+    const req = mockReq();
+    const res = mockRes();
+    const expectedError = new Error('response failed');
+    res.writeHead = (): never => {
+      throw expectedError;
+    };
+    const next = vi.fn();
+    const completed = new Promise<void>((resolve) => {
+      middleware(req, res, (error?: unknown) => {
+        next(error);
+        resolve();
+      });
+    });
+
+    await vi.runAllTimersAsync();
+    await completed;
+
+    expect(next).toHaveBeenCalledWith(expectedError);
+  });
+
   it('destroys the socket and does NOT call next() on tcp-drop failure', async () => {
     const middleware = chaosMiddleware(alwaysFailTcpOptions);
     const req = mockReq();
@@ -368,6 +390,25 @@ describe('withChaos', () => {
     const p = wrapped(req);
     await vi.runAllTimersAsync();
     const res = await p;
+
+    expect(handler).toHaveBeenCalledOnce();
+    expect(res.status).toBe(200);
+  });
+
+  it('supports relative request URLs and strips their query string', async () => {
+    const handler = vi.fn().mockResolvedValue(mockNextRes(200)) as (
+      req: NextRequestLike,
+    ) => Promise<NextResponseLike>;
+    const wrapped = withChaos(handler, {
+      ...alwaysFailHttpOptions,
+      excludeRoutes: ['/health'],
+    });
+    const req = {
+      ...mockNextReq(),
+      url: '/health?ready=1',
+    };
+
+    const res = await wrapped(req);
 
     expect(handler).toHaveBeenCalledOnce();
     expect(res.status).toBe(200);

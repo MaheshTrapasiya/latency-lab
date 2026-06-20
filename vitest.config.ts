@@ -11,17 +11,12 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/index.ts'],
       thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 75,
-        statements: 80,
+        lines: 90,
+        functions: 100,
+        branches: 90,
+        statements: 90,
       },
     },
     testTimeout: 10_000,
-  },
-  resolve: {
-    alias: {
-      'latency-lab': '/home/claude/latency-lab/src/index.ts',
-    },
   },
 });

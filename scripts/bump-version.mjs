@@ -3,6 +3,13 @@ import https from 'node:https';
 
 const packageJsonPath = new URL('../package.json', import.meta.url);
 const packageLockPath = new URL('../package-lock.json', import.meta.url);
+const releaseType = process.env.VERSION_BUMP ?? process.argv[2] ?? 'patch';
+
+if (!['major', 'minor', 'patch'].includes(releaseType)) {
+  throw new Error(
+    `VERSION_BUMP must be "major", "minor", or "patch", got: ${releaseType}`,
+  );
+}
 
 function parseVersion(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(?:-.+)?$/.exec(version);
@@ -28,9 +35,16 @@ function compareVersions(a, b) {
   );
 }
 
-function nextMinor(version) {
+function nextVersion(version, type) {
   const parsed = parseVersion(version);
-  return `${parsed.major}.${parsed.minor + 1}.0`;
+
+  if (type === 'major') {
+    return `${parsed.major + 1}.0.0`;
+  }
+  if (type === 'minor') {
+    return `${parsed.major}.${parsed.minor + 1}.0`;
+  }
+  return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
 }
 
 function registryPackageUrl(packageName) {
@@ -79,10 +93,11 @@ const packageLock = JSON.parse(await readFile(packageLockPath, 'utf8'));
 
 const publishedVersion = await readRegistryVersion(packageJson.name);
 const baseVersion =
-  publishedVersion !== null && compareVersions(publishedVersion, packageJson.version) > 0
+  publishedVersion !== null &&
+  compareVersions(publishedVersion, packageJson.version) > 0
     ? publishedVersion
     : packageJson.version;
-const bumpedVersion = nextMinor(baseVersion);
+const bumpedVersion = nextVersion(baseVersion, releaseType);
 
 packageJson.version = bumpedVersion;
 packageLock.version = bumpedVersion;
@@ -94,4 +109,4 @@ if (packageLock.packages?.[''] !== undefined) {
 await writeJson(packageJsonPath, packageJson);
 await writeJson(packageLockPath, packageLock);
 
-console.log(`Version bumped to ${bumpedVersion}`);
+console.log(`Version bumped to ${bumpedVersion} (${releaseType})`);
