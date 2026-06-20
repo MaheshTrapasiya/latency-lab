@@ -30,6 +30,7 @@ jobs:
 
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v6
@@ -39,7 +40,6 @@ jobs:
           registry-url: https://registry.npmjs.org/
           package-manager-cache: false
       - run: npm ci
-      
-      - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.npm_token }}
+
+      - name: Publish with npm Trusted Publishing
+        run: npm publish --access public
