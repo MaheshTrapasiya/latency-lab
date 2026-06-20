@@ -76,6 +76,36 @@ const congestedStadium: Readonly<ChaosOptions> = Object.freeze({
   errorCodes: [429, 503, 504, 520],
 } satisfies ChaosOptions);
 
+/** Stable but inherently high-latency satellite internet. */
+const satelliteLink: Readonly<ChaosOptions> = Object.freeze({
+  baseDelay: 600,
+  jitter: 50,
+  wavePeriod: 120,
+  failureRate: 0.01,
+  failureType: 'http-error',
+  errorCodes: [408, 504],
+} satisfies ChaosOptions);
+
+/** International mobile roaming with bursts and mixed failures. */
+const mobileDataRoaming: Readonly<ChaosOptions> = Object.freeze({
+  baseDelay: 250,
+  jitter: 350,
+  wavePeriod: 15,
+  failureRate: 0.08,
+  failureType: 'random',
+  errorCodes: [408, 429, 502, 503, 504],
+} satisfies ChaosOptions);
+
+/** Corporate VPN latency with occasional abrupt connection loss. */
+const corpVPN: Readonly<ChaosOptions> = Object.freeze({
+  baseDelay: 120,
+  jitter: 80,
+  wavePeriod: 45,
+  failureRate: 0.03,
+  failureType: 'tcp-drop',
+  errorCodes: [502, 503, 504],
+} satisfies ChaosOptions);
+
 /**
  * Collection of all built-in network chaos presets.
  *
@@ -97,6 +127,9 @@ export const presets = Object.freeze({
   flakyCafeWifi,
   slow3g,
   congestedStadium,
+  satelliteLink,
+  mobileDataRoaming,
+  corpVPN,
 } as const);
 
 export type PresetName = keyof typeof presets;

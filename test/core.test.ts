@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   calculateDelay,
+  decideChaos,
   shouldFail,
   pickErrorCode,
   resolveFailureType,
@@ -22,6 +23,44 @@ const baseOptions: ChaosOptions = {
   failureType: 'http-error',
   errorCodes: [503, 500],
 };
+
+describe('decideChaos', () => {
+  it('returns a pass decision with the resolved delay', () => {
+    expect(
+      decideChaos({
+        ...baseOptions,
+        baseDelay: 75,
+        jitter: 0,
+        failureRate: 0,
+      }),
+    ).toEqual({ outcome: 'pass', delay: 75 });
+  });
+
+  it('returns an HTTP error decision with a status code', () => {
+    expect(
+      decideChaos({
+        ...baseOptions,
+        baseDelay: 0,
+        jitter: 0,
+        failureRate: 1,
+        failureType: 'http-error',
+        errorCodes: [503],
+      }),
+    ).toEqual({ outcome: 'http-error', delay: 0, statusCode: 503 });
+  });
+
+  it('returns a TCP drop decision', () => {
+    expect(
+      decideChaos({
+        ...baseOptions,
+        baseDelay: 0,
+        jitter: 0,
+        failureRate: 1,
+        failureType: 'tcp-drop',
+      }),
+    ).toEqual({ outcome: 'tcp-drop', delay: 0 });
+  });
+});
 
 // ---------------------------------------------------------------------------
 // validateChaosOptions

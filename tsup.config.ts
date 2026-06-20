@@ -8,6 +8,8 @@ export default defineConfig({
     presets: 'src/presets.ts',
     express: 'src/express.ts',
     next: 'src/next.ts',
+    fastify: 'src/fastify.ts',
+    hono: 'src/hono.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

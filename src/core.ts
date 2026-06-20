@@ -1,5 +1,9 @@
 import { ChaosConfigError } from './types.js';
-import type { ChaosOptions, ResolvedFailureType } from './types.js';
+import type {
+  ChaosDecision,
+  ChaosOptions,
+  ResolvedFailureType,
+} from './types.js';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -201,6 +205,25 @@ export function resolveFailureType(options: ChaosOptions): ResolvedFailureType {
     return Math.random() < 0.5 ? 'http-error' : 'tcp-drop';
   }
   return options.failureType;
+}
+
+/** Resolves the complete chaos outcome for one request. */
+export function decideChaos(options: ChaosOptions): ChaosDecision {
+  const delay = calculateDelay(options);
+
+  if (!shouldFail(options)) {
+    return { outcome: 'pass', delay };
+  }
+
+  if (resolveFailureType(options) === 'tcp-drop') {
+    return { outcome: 'tcp-drop', delay };
+  }
+
+  return {
+    outcome: 'http-error',
+    delay,
+    statusCode: pickErrorCode(options),
+  };
 }
 
 // ---------------------------------------------------------------------------

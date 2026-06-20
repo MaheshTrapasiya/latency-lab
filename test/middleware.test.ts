@@ -473,6 +473,14 @@ describe('presets', () => {
     expect(presets.slow3g.failureRate).toBeLessThan(presets.congestedStadium.failureRate);
   });
 
+  it('includes the v1.1 network profiles', () => {
+    expect(presets.satelliteLink.baseDelay).toBeGreaterThanOrEqual(600);
+    expect(presets.mobileDataRoaming.jitter).toBeGreaterThan(
+      presets.corpVPN.jitter,
+    );
+    expect(presets.corpVPN.failureType).toBe('tcp-drop');
+  });
+
   it('presets are frozen (immutable)', () => {
     expect(Object.isFrozen(presets.slow3g)).toBe(true);
     expect(Object.isFrozen(presets.flakyCafeWifi)).toBe(true);

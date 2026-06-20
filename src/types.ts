@@ -16,6 +16,12 @@ export type FailureType = 'http-error' | 'tcp-drop' | 'random';
  */
 export type ResolvedFailureType = Exclude<FailureType, 'random'>;
 
+/** Resolved action for one request after all randomness has been evaluated. */
+export type ChaosDecision =
+  | { outcome: 'pass'; delay: number }
+  | { outcome: 'http-error'; delay: number; statusCode: number }
+  | { outcome: 'tcp-drop'; delay: number };
+
 /**
  * Core chaos configuration.
  *

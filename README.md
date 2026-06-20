@@ -44,6 +44,12 @@ npm install express
 
 # For Next.js
 npm install next
+
+# For Fastify
+npm install fastify
+
+# For Hono
+npm install hono
 ```
 
 ---
@@ -87,6 +93,26 @@ async function GET(_req: NextRequest): Promise<NextResponse> {
 }
 
 export const GET = withChaos(GET, presets.slow3g);
+```
+
+### Fastify
+
+```ts
+import Fastify from 'fastify';
+import { fastifyChaos, presets } from 'latency-lab/fastify';
+
+const app = Fastify();
+app.addHook('onRequest', fastifyChaos(presets.corpVPN));
+```
+
+### Hono
+
+```ts
+import { Hono } from 'hono';
+import { honoChaos, presets } from 'latency-lab/hono';
+
+const app = new Hono();
+app.use('*', honoChaos(presets.mobileDataRoaming));
 ```
 
 ---
@@ -275,6 +301,14 @@ When `failureType` is `'random'`, randomly picks between `'http-error'` and `'tc
 
 ---
 
+### `decideChaos(options: ChaosOptions): ChaosDecision`
+
+Resolves the delay and final outcome for one request. The result is a
+discriminated union with an `outcome` of `'pass'`, `'http-error'`, or
+`'tcp-drop'`.
+
+---
+
 ### `sleep(ms: number): Promise<void>`
 
 Non-blocking async sleep using `setTimeout`.
@@ -314,6 +348,27 @@ Wraps a Next.js App Router handler with chaos injection.
 import { withChaos } from 'latency-lab/next';
 
 export const GET = withChaos(myGetHandler, presets.slow3g);
+```
+
+---
+
+### `fastifyChaos(options: MiddlewareOptions): FastifyOnRequestHook`
+
+Creates an async Fastify `onRequest` hook.
+
+```ts
+app.addHook('onRequest', fastifyChaos(presets.flakyCafeWifi));
+```
+
+---
+
+### `honoChaos(options: MiddlewareOptions): HonoMiddleware`
+
+Creates Hono middleware. TCP drops are represented by a marked 503 response
+because edge runtimes do not expose the underlying socket.
+
+```ts
+app.use('*', honoChaos(presets.slow3g));
 ```
 
 ---
@@ -359,6 +414,9 @@ presets.subwayTunnel
 presets.flakyCafeWifi
 presets.slow3g
 presets.congestedStadium
+presets.satelliteLink
+presets.mobileDataRoaming
+presets.corpVPN
 ```
 
 All preset values are `readonly` and fully typed as `ChaosOptions`.
