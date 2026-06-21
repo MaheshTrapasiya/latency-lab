@@ -1,13 +1,29 @@
 # latency-lab
 
-> Inject realistic network chaos into backend applications during local development and testing.
+> TypeScript network latency simulator and HTTP fault-injection toolkit for
+> Node.js, browsers, APIs, framework middleware, and zero-code proxy testing.
 
 [![npm version](https://img.shields.io/npm/v/latency-lab.svg)](https://www.npmjs.com/package/latency-lab)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](#)
 
-Unlike a simple `setTimeout` wrapper, `latency-lab` models real-world degraded network conditions: sine-wave quality fluctuations, bursty jitter, probabilistic packet loss, TCP-level connection drops, and HTTP error injection — all composable, all typed.
+`latency-lab` helps developers test how applications behave under slow,
+unreliable, or unavailable networks. It supports outbound Fetch interception,
+Express, Next.js, Fastify, and Hono middleware, plus an HTTP/HTTPS reverse proxy
+that works with applications written in any language.
+
+Unlike a simple `setTimeout` wrapper, it models real-world degraded network
+conditions: sine-wave quality fluctuations, bursty jitter, probabilistic packet
+loss, TCP-level connection drops, and HTTP error injection - all composable,
+typed, and dependency-free at runtime.
+
+| Goal | Use |
+|---|---|
+| Degrade outgoing API calls | `createChaosFetch()` or `installFetchChaos()` |
+| Test a Node.js server | Express, Next.js, Fastify, or Hono adapter |
+| Test without changing application code | `npx latency-lab --target ...` |
+| Reproduce realistic network conditions | Built-in presets such as `slow3g` |
 
 ---
 
@@ -164,6 +180,59 @@ LATENCY_LAB_FAILURE_RATE=0.1
 LATENCY_LAB_EXCLUDE_ROUTES=/health,/metrics
 npx latency-lab
 ```
+
+---
+
+## Common Testing Recipes
+
+### Simulate a third-party API outage
+
+Return synthetic `503` responses for one external service while all other Fetch
+requests pass through normally:
+
+```ts
+import { createChaosFetch } from 'latency-lab/fetch';
+
+const outageFetch = createChaosFetch({
+  baseDelay: 0,
+  jitter: 0,
+  wavePeriod: 0,
+  failureRate: 1,
+  failureType: 'http-error',
+  errorCodes: [503],
+  includeUrls: ['https://payments.example.com/'],
+});
+```
+
+### Test timeout and retry behavior
+
+Use a deterministic delay with no injected failures:
+
+```ts
+import { createChaosFetch } from 'latency-lab/fetch';
+
+const slowFetch = createChaosFetch({
+  baseDelay: 2_000,
+  jitter: 0,
+  wavePeriod: 0,
+  failureRate: 0,
+  failureType: 'http-error',
+  errorCodes: [503],
+});
+```
+
+Fetch abort signals remain active during the injected delay, so application
+timeouts can be tested directly.
+
+### Test any local service without code changes
+
+Put the chaos proxy in front of a Python, Go, Java, Ruby, PHP, or Node.js server:
+
+```bash
+npx latency-lab --target http://localhost:3000 --port 4000 --preset slow3g
+```
+
+Point tests at `http://127.0.0.1:4000` instead of the original service port.
 
 ---
 

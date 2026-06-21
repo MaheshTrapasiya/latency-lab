@@ -1,20 +1,29 @@
 {
   "name": "latency-lab",
   "version": "1.2.1",
-  "description": "Inject realistic network chaos into backend applications during local development and testing",
+  "description": "TypeScript network latency simulator and HTTP fault-injection toolkit for Fetch, Express, Next.js, Fastify, Hono, and proxy testing",
   "keywords": [
     "network",
+    "network-latency",
     "chaos",
+    "chaos-engineering",
     "latency",
     "testing",
+    "api-testing",
+    "resilience-testing",
+    "http",
     "middleware",
     "express",
     "nextjs",
+    "fastify",
+    "hono",
     "development",
     "simulation",
     "fault-injection",
     "fetch",
+    "fetch-interceptor",
     "proxy",
+    "reverse-proxy",
     "cli",
     "undici"
   ],
@@ -133,6 +142,7 @@
     "dist",
     "README.md",
     "CHANGELOG.md",
+    "llms.txt",
     "LICENSE"
   ],
   "scripts": {

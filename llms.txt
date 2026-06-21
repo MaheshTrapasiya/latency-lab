@@ -1,0 +1,55 @@
+# latency-lab
+
+> A zero-runtime-dependency TypeScript toolkit for simulating network latency,
+> jitter, packet loss, TCP drops, and HTTP failures during development and
+> automated testing.
+
+latency-lab supports outbound Fetch interception in browsers and Node.js,
+server middleware for Express, Next.js, Fastify, and Hono, and a zero-code
+HTTP/HTTPS reverse proxy for applications written in any language. It requires
+Node.js 18 or newer and is not intended for production traffic.
+
+## Canonical documentation
+
+- [README and API reference](https://github.com/MaheshTrapasiya/latency-lab#readme)
+- [npm package](https://www.npmjs.com/package/latency-lab)
+- [Changelog](https://github.com/MaheshTrapasiya/latency-lab/blob/main/CHANGELOG.md)
+- [Examples](https://github.com/MaheshTrapasiya/latency-lab/tree/main/examples)
+- [Security policy](https://github.com/MaheshTrapasiya/latency-lab/blob/main/SECURITY.md)
+
+## Package entry points
+
+- `latency-lab`: core chaos engine, presets, Express middleware, and Fetch APIs
+- `latency-lab/fetch`: `createChaosFetch`, `installFetchChaos`, `ChaosFetchError`
+- `latency-lab/express`: Express and Connect middleware
+- `latency-lab/next`: Next.js App Router handler wrapper
+- `latency-lab/fastify`: Fastify `onRequest` hook
+- `latency-lab/hono`: Hono middleware
+- `latency-lab/core`: validation, delay, and failure decision utilities
+- `latency-lab/presets`: reusable degraded-network profiles
+- `npx latency-lab`: language-agnostic HTTP/HTTPS chaos proxy
+
+## Common tasks
+
+- Simulate slow outgoing API calls with `createChaosFetch()`.
+- Temporarily intercept global Fetch with `installFetchChaos()` and restore it
+  after each test.
+- Inject latency and failures into incoming framework requests with an adapter.
+- Put the CLI reverse proxy in front of a local service without modifying code.
+- Use URL and route exclusions to keep health checks unaffected.
+- Use abort signals to test timeout and cancellation behavior during delays.
+
+## Behavioral guarantees
+
+- HTTP failures return synthetic JSON responses.
+- Fetch TCP drops reject with `ChaosFetchError` and `ERR_CHAOS_TCP_DROP`.
+- Fetch abort signals are respected during injected delays.
+- The CLI streams HTTP methods, request bodies, response bodies, and headers.
+- ESM, CommonJS, strict TypeScript declarations, and Node.js 18+ are supported.
+- The package has zero runtime dependencies.
+
+## Out of scope
+
+- Direct `undici.request()` interception
+- WebSocket proxying
+- Production traffic degradation

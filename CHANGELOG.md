@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.2] - 2026-06-21
+
+### Documentation
+
+- Improved npm and README discovery metadata for network latency simulation,
+  HTTP fault injection, Fetch interception, framework middleware, and proxy
+  testing use cases.
+- Added task-oriented outage, timeout, retry, and language-agnostic proxy
+  recipes.
+- Added `llms.txt` as a concise machine-readable project and API index.
+
 ## [1.2.1] - 2026-06-21
 
 ### Security
