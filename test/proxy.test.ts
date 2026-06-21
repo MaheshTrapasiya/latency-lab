@@ -70,6 +70,7 @@ async function startProxy(
 
 describe('createChaosProxy', () => {
   it('streams methods, bodies, queries, base paths, and forwarding headers', async () => {
+    let receivedRequest: Record<string, unknown> | undefined;
     const target = await startUpstream((request, response) => {
       let body = '';
       request.setEncoding('utf8');
@@ -77,18 +78,17 @@ describe('createChaosProxy', () => {
         body += chunk;
       });
       request.on('end', () => {
+        receivedRequest = {
+          method: request.method,
+          url: request.url,
+          body,
+          forwardedHost: request.headers['x-forwarded-host'],
+          forwardedFor: request.headers['x-forwarded-for'],
+          forwardedProto: request.headers['x-forwarded-proto'],
+          host: request.headers.host,
+        };
         response.writeHead(201, { 'X-Upstream': 'yes' });
-        response.end(
-          JSON.stringify({
-            method: request.method,
-            url: request.url,
-            body,
-            forwardedHost: request.headers['x-forwarded-host'],
-            forwardedFor: request.headers['x-forwarded-for'],
-            forwardedProto: request.headers['x-forwarded-proto'],
-            host: request.headers.host,
-          }),
-        );
+        response.end('forwarded');
       });
     });
     target.pathname = '/base/';
@@ -107,21 +107,21 @@ describe('createChaosProxy', () => {
       },
       body: 'payload',
     });
-    const result = await response.json() as Record<string, unknown>;
+    await response.text();
 
     expect(response.status).toBe(201);
     expect(response.headers.get('X-Upstream')).toBe('yes');
-    expect(result).toMatchObject({
+    expect(receivedRequest).toMatchObject({
       method: 'POST',
       url: '/base/echo?value=1',
       body: 'payload',
       forwardedProto: 'http',
     });
-    expect(String(result['forwardedHost'])).toContain('127.0.0.1');
-    expect(String(result['forwardedFor'])).toContain(
+    expect(String(receivedRequest?.['forwardedHost'])).toContain('127.0.0.1');
+    expect(String(receivedRequest?.['forwardedFor'])).toContain(
       '203.0.113.10, 127.0.0.1',
     );
-    expect(String(result['host'])).toBe(target.host);
+    expect(String(receivedRequest?.['host'])).toBe(target.host);
     expect(logs).toHaveLength(1);
     expect(logs[0]).toContain('POST /echo?value=1');
     expect(logs[0]).toContain('outcome=pass');

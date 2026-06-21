@@ -48,7 +48,7 @@ function nextVersion(version, type) {
 }
 
 function registryPackageUrl(packageName) {
-  return `https://registry.npmjs.org/${packageName.replace('/', '%2f')}/latest`;
+  return `https://registry.npmjs.org/${encodeURIComponent(packageName)}/latest`;
 }
 
 function readRegistryVersion(packageName) {

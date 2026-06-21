@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.1] - 2026-06-21
+
+### Security
+
+- Updated the development test toolchain to patched Vitest, Vite, and esbuild
+  versions with zero known npm vulnerabilities.
+- Enabled explicit workflow permissions and hardened release URL handling.
+- Removed reflected request data from the proxy integration test response.
+
+### Added
+
+- Contributor guide, security policy, code of conduct, issue forms, pull
+  request template, and Dependabot configuration.
+- Automatic GitHub tags and releases after successful npm publishing.
+
 ## [1.2.0] - 2026-06-21
 
 ### Added

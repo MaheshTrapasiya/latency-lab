@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an improvement to latency-lab
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem or limitation should be addressed?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API, behavior, and alternatives you considered.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example usage
+      render: typescript
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Project constraints
+      options:
+        - label: This proposal can preserve zero runtime dependencies.
+        - label: This proposal can preserve Node.js 18 compatibility.
