@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.3] - 2026-06-21
+
+### Fixed
+
+- Restored the TypeScript 5.9, Vitest 3, and ESLint 9 toolchain after an
+  incompatible grouped major dependency update broke declaration builds.
+- Limited grouped Dependabot development updates to minor and patch releases
+  and ignored incompatible major lines.
+- Added CI coverage for Node.js 18, 20, and 24.
+
 ## [1.2.2] - 2026-06-21
 
 ### Documentation
