@@ -115,6 +115,56 @@ const app = new Hono();
 app.use('*', honoChaos(presets.mobileDataRoaming));
 ```
 
+### Outbound Fetch
+
+```ts
+import { createChaosFetch, presets } from 'latency-lab/fetch';
+
+const degradedFetch = createChaosFetch({
+  ...presets.mobileDataRoaming,
+  includeUrls: ['https://api.example.com/'],
+  excludeUrls: ['https://api.example.com/health'],
+});
+
+const response = await degradedFetch('https://api.example.com/users');
+```
+
+To intercept global Fetch temporarily:
+
+```ts
+import { installFetchChaos, presets } from 'latency-lab/fetch';
+
+const installation = installFetchChaos(presets.flakyCafeWifi);
+try {
+  await fetch('https://third-party.example.com/data');
+} finally {
+  installation.restore();
+}
+```
+
+### Zero-code CLI proxy
+
+```bash
+npx latency-lab \
+  --target http://localhost:3000 \
+  --port 4000 \
+  --preset flakyCafeWifi
+```
+
+Send requests to `http://127.0.0.1:4000`; the proxy forwards them to the
+target after applying chaos. Use `--quiet` to disable per-request logs.
+
+CLI flags override matching environment variables:
+
+```bash
+LATENCY_LAB_TARGET=http://localhost:3000
+LATENCY_LAB_PORT=4000
+LATENCY_LAB_PRESET=slow3g
+LATENCY_LAB_FAILURE_RATE=0.1
+LATENCY_LAB_EXCLUDE_ROUTES=/health,/metrics
+npx latency-lab
+```
+
 ---
 
 ## Presets
@@ -373,6 +423,43 @@ app.use('*', honoChaos(presets.slow3g));
 
 ---
 
+### `createChaosFetch(options, fetchImpl?): typeof fetch`
+
+Creates a Fetch-compatible wrapper for outbound requests. HTTP failures return
+a marked JSON `Response`; TCP drops reject with `ChaosFetchError`.
+
+`includeUrls` and `excludeUrls` accept URL-prefix strings or regular
+expressions. All valid URLs are included by default and exclusions take
+precedence.
+
+---
+
+### `installFetchChaos(options): FetchChaosInstallation`
+
+Installs Fetch chaos on `globalThis.fetch` and returns an object containing
+the installed `fetch` function and an idempotent `restore()` method.
+
+---
+
+### CLI environment variables
+
+| Variable | Purpose |
+|---|---|
+| `LATENCY_LAB_TARGET` | Required upstream HTTP/HTTPS URL |
+| `LATENCY_LAB_HOST` | Listen host, default `127.0.0.1` |
+| `LATENCY_LAB_PORT` | Listen port, default `4000` |
+| `LATENCY_LAB_PRESET` | Built-in preset name |
+| `LATENCY_LAB_BASE_DELAY` | Base delay override |
+| `LATENCY_LAB_JITTER` | Jitter override |
+| `LATENCY_LAB_WAVE_PERIOD` | Wave period override |
+| `LATENCY_LAB_FAILURE_RATE` | Failure probability override |
+| `LATENCY_LAB_FAILURE_TYPE` | `http-error`, `tcp-drop`, or `random` |
+| `LATENCY_LAB_ERROR_CODES` | Comma-separated status codes |
+| `LATENCY_LAB_EXCLUDE_ROUTES` | Comma-separated route prefixes |
+| `LATENCY_LAB_QUIET` | `true`/`false` request logging control |
+
+---
+
 ### `ChaosOptions`
 
 ```ts
@@ -469,6 +556,8 @@ No. It only affects standard HTTP request/response cycles.
 
 - TCP drop simulation in Express destroys the underlying socket. Some HTTP clients may retry automatically.
 - TCP drop in Next.js returns a 503 response (true socket destruction is not possible in App Router handlers).
+- Fetch interception covers the standard Fetch API, including Node's Undici-backed global Fetch, but not direct `undici.request()` calls.
+- The CLI proxy supports ordinary HTTP request/response traffic and rejects WebSocket upgrades.
 - Wave fluctuation uses wall-clock time (`Date.now()`), which means multiple concurrent requests at the same instant receive similar wave offsets (by design).
 - Route exclusion uses prefix matching. Regex patterns are not supported.
 

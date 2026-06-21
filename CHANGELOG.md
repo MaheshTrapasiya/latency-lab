@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0] - 2026-06-21
+
+### Added
+
+- Outbound Fetch chaos through `createChaosFetch()` and
+  `installFetchChaos()`.
+- URL inclusion/exclusion filters, abort-aware delays, synthetic HTTP errors,
+  and typed TCP-drop failures for Fetch.
+- Zero-code `latency-lab` CLI reverse proxy for HTTP and HTTPS targets.
+- CLI flags and `LATENCY_LAB_*` environment configuration with preset
+  overrides and per-request logging.
+
+### Changed
+
+- Release publishing supports explicit `[minor]` and `[major]` commit
+  markers while defaulting to patch releases.
+- Manual workflow runs can select patch, minor, or major version bumps.
+- Successful publishes commit the released version back to `package.json` and
+  `package-lock.json`.
+
 ## [1.1.1] - 2026-06-20
 
 ### Changed

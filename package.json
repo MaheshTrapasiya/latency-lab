@@ -12,7 +12,11 @@
     "nextjs",
     "development",
     "simulation",
-    "fault-injection"
+    "fault-injection",
+    "fetch",
+    "proxy",
+    "cli",
+    "undici"
   ],
   "author": "Mahesh Trapasiya",
   "license": "MIT",
@@ -29,6 +33,9 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "latency-lab": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "import": {
@@ -88,6 +95,16 @@
       "require": {
         "types": "./dist/hono.d.cts",
         "default": "./dist/hono.cjs"
+      }
+    },
+    "./fetch": {
+      "import": {
+        "types": "./dist/fetch.d.ts",
+        "default": "./dist/fetch.js"
+      },
+      "require": {
+        "types": "./dist/fetch.d.cts",
+        "default": "./dist/fetch.cjs"
       }
     },
     "./presets": {

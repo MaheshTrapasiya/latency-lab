@@ -8,6 +8,16 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: Semantic version bump
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 concurrency:
   group: npm-publish-main
@@ -29,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
@@ -44,4 +54,14 @@ jobs:
       - name: Publish with npm Trusted Publishing
         run: npm publish --access public
         env:
-          VERSION_BUMP: patch
+          VERSION_BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.release_type || contains(github.event.head_commit.message, '[major]') && 'major' || contains(github.event.head_commit.message, '[minor]') && 'minor' || 'patch' }}
+
+      - name: Commit published version
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore(release): v${version} [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

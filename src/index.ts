@@ -41,3 +41,4 @@ export * from './express.js';
 export * from './next.js';
 export * from './fastify.js';
 export * from './hono.js';
+export * from './fetch.js';
