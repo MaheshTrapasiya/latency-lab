@@ -6,7 +6,12 @@ import type {
   Server,
   ServerResponse,
 } from 'node:http';
-import { decideChaos, isExcluded, sleep, validateChaosOptions } from './core.js';
+import {
+  decideChaos,
+  selectChaosOptionsForPath,
+  sleep,
+  validateMiddlewareOptions,
+} from './core.js';
 import type { MiddlewareOptions } from './types.js';
 
 export type ProxyOutcome =
@@ -160,19 +165,19 @@ function proxyRequest(
 function createRequestHandler(
   config: ChaosProxyConfig,
 ): (request: IncomingMessage, response: ServerResponse) => void {
-  const validated = validateChaosOptions(config.chaos);
-  const excludeRoutes = config.chaos.excludeRoutes ?? [];
+  const resolved = validateMiddlewareOptions(config.chaos);
 
   return (request, response): void => {
     (async (): Promise<void> => {
       const pathname = incomingPath(request).pathname;
-      if (isExcluded(pathname, excludeRoutes)) {
+      const chaos = selectChaosOptionsForPath(pathname, resolved);
+      if (chaos === null) {
         logRequest(config, request, 0, 'excluded');
         proxyRequest(request, response, config);
         return;
       }
 
-      const decision = decideChaos(validated);
+      const decision = decideChaos(chaos);
       await sleep(decision.delay);
 
       if (decision.outcome === 'http-error') {

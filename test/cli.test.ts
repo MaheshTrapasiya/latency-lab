@@ -35,6 +35,7 @@ describe('parseCliArgs', () => {
       LATENCY_LAB_FAILURE_RATE: '0.4',
       LATENCY_LAB_FAILURE_TYPE: 'tcp-drop',
       LATENCY_LAB_ERROR_CODES: '502,503',
+      LATENCY_LAB_INCLUDE_ROUTES: '/api,/webhooks',
       LATENCY_LAB_EXCLUDE_ROUTES: '/health,/metrics',
       LATENCY_LAB_QUIET: 'true',
     });
@@ -51,6 +52,7 @@ describe('parseCliArgs', () => {
         failureRate: 0.4,
         failureType: 'tcp-drop',
         errorCodes: [502, 503],
+        includeRoutes: ['/api', '/webhooks'],
         excludeRoutes: ['/health', '/metrics'],
       },
     });
@@ -64,6 +66,7 @@ describe('parseCliArgs', () => {
         '--port', '4200',
         '--preset', 'corpVPN',
         '--base-delay', '5',
+        '--include-route', '/api',
         '--exclude-route', '/one',
         '--exclude-route', '/two',
         '--quiet',
@@ -72,6 +75,7 @@ describe('parseCliArgs', () => {
         LATENCY_LAB_TARGET: 'http://env.example.com',
         LATENCY_LAB_PORT: '4100',
         LATENCY_LAB_BASE_DELAY: '100',
+        LATENCY_LAB_INCLUDE_ROUTES: '/env-api',
         LATENCY_LAB_EXCLUDE_ROUTES: '/env',
         LATENCY_LAB_QUIET: 'false',
       },
@@ -81,6 +85,7 @@ describe('parseCliArgs', () => {
     expect(result.config.target.hostname).toBe('cli.example.com');
     expect(result.config.port).toBe(4200);
     expect(result.config.chaos.baseDelay).toBe(5);
+    expect(result.config.chaos.includeRoutes).toEqual(['/api']);
     expect(result.config.chaos.excludeRoutes).toEqual(['/one', '/two']);
     expect(result.config.quiet).toBe(true);
   });

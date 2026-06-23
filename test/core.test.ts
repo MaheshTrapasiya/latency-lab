@@ -7,10 +7,13 @@ import {
   resolveFailureType,
   sleep,
   validateChaosOptions,
+  validateMiddlewareOptions,
   isExcluded,
+  isIncluded,
+  selectChaosOptionsForPath,
 } from '../src/core.js';
 import { ChaosConfigError } from '../src/types.js';
-import type { ChaosOptions } from '../src/types.js';
+import type { ChaosOptions, MiddlewareOptions } from '../src/types.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -204,6 +207,106 @@ describe('validateChaosOptions', () => {
       expect(err).toBeInstanceOf(ChaosConfigError);
       expect((err as ChaosConfigError).message).toMatch(/baseDelay/);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateMiddlewareOptions / route selection
+// ---------------------------------------------------------------------------
+
+describe('validateMiddlewareOptions', () => {
+  it('accepts include routes, exclude routes, and per-route overrides', () => {
+    const resolved = validateMiddlewareOptions({
+      ...baseOptions,
+      includeRoutes: ['/api'],
+      excludeRoutes: [/^\/api\/health/],
+      routes: [
+        {
+          match: '/api/payments',
+          chaos: { ...baseOptions, failureRate: 1 },
+        },
+        { match: '/api/public', chaos: false },
+      ],
+    });
+
+    expect(resolved.includeRoutes).toEqual(['/api']);
+    expect(resolved.excludeRoutes).toHaveLength(1);
+    expect(resolved.routes).toHaveLength(2);
+  });
+
+  it.each([
+    [{ ...baseOptions, includeRoutes: '/api' }, 'includeRoutes'],
+    [{ ...baseOptions, excludeRoutes: [42] }, 'excludeRoutes'],
+    [{ ...baseOptions, routes: 'payments' }, 'routes'],
+    [{ ...baseOptions, routes: [null] }, 'routes[0]'],
+    [{ ...baseOptions, routes: [{ match: 42, chaos: baseOptions }] }, 'match'],
+    [{ ...baseOptions, routes: [{ match: '/api', chaos: { ...baseOptions, failureRate: 2 } }] }, 'failureRate'],
+  ])('rejects malformed middleware route config', (options, message) => {
+    expect(() =>
+      validateMiddlewareOptions(options as unknown as MiddlewareOptions),
+    ).toThrow(message);
+  });
+});
+
+describe('selectChaosOptionsForPath', () => {
+  it('returns the default chaos when no route filters match', () => {
+    const resolved = validateMiddlewareOptions(baseOptions);
+    expect(selectChaosOptionsForPath('/api/users', resolved)).toEqual(
+      baseOptions,
+    );
+  });
+
+  it('uses includeRoutes as an allow-list for default chaos', () => {
+    const resolved = validateMiddlewareOptions({
+      ...baseOptions,
+      includeRoutes: ['/api'],
+    });
+
+    expect(selectChaosOptionsForPath('/api/users', resolved)).toEqual(
+      baseOptions,
+    );
+    expect(selectChaosOptionsForPath('/health', resolved)).toBeNull();
+  });
+
+  it('lets excludeRoutes override include routes and per-route chaos', () => {
+    const routeChaos = { ...baseOptions, baseDelay: 999 };
+    const resolved = validateMiddlewareOptions({
+      ...baseOptions,
+      includeRoutes: ['/api'],
+      excludeRoutes: ['/api/payments'],
+      routes: [{ match: '/api/payments', chaos: routeChaos }],
+    });
+
+    expect(selectChaosOptionsForPath('/api/payments', resolved)).toBeNull();
+  });
+
+  it('uses the first matching per-route chaos override', () => {
+    const routeChaos = { ...baseOptions, baseDelay: 999 };
+    const resolved = validateMiddlewareOptions({
+      ...baseOptions,
+      routes: [
+        { match: '/api/payments', chaos: routeChaos },
+        { match: '/api/payments/card', chaos: { ...baseOptions, baseDelay: 1 } },
+      ],
+    });
+
+    expect(selectChaosOptionsForPath('/api/payments/card', resolved)).toEqual(
+      routeChaos,
+    );
+  });
+
+  it('supports per-route bypass and regular expression matchers', () => {
+    const resolved = validateMiddlewareOptions({
+      ...baseOptions,
+      routes: [
+        { match: /^\/api\/public(?:\/|$)/, chaos: false },
+      ],
+    });
+
+    expect(selectChaosOptionsForPath('/api/public/users', resolved)).toBeNull();
+    expect(selectChaosOptionsForPath('/api/private/users', resolved)).toEqual(
+      baseOptions,
+    );
   });
 });
 
@@ -500,5 +603,18 @@ describe('isExcluded', () => {
     expect(isExcluded('/_next/static/chunk.js', excluded)).toBe(true);
     expect(isExcluded('/favicon.ico', excluded)).toBe(true);
     expect(isExcluded('/api/posts', excluded)).toBe(false);
+  });
+
+  it('matches regular expression exclusions', () => {
+    expect(isExcluded('/api/health', [/^\/api\/health$/])).toBe(true);
+    expect(isExcluded('/api/users', [/^\/api\/health$/])).toBe(false);
+  });
+});
+
+describe('isIncluded', () => {
+  it('uses the same prefix and RegExp matching rules as exclusions', () => {
+    expect(isIncluded('/api/users', ['/api'])).toBe(true);
+    expect(isIncluded('/admin', ['/api'])).toBe(false);
+    expect(isIncluded('/v1/users', [/^\/v\d+\//])).toBe(true);
   });
 });

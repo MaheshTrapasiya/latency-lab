@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] - 2026-06-23
+
+### Added
+
+- Added middleware and proxy `includeRoutes` support to apply chaos only to
+  selected route prefixes or regular expressions.
+- Added per-route chaos overrides with `routes`, including `chaos: false` for
+  explicit route bypasses.
+- Added a public `ChaosScenario` type for team-shared scenario configuration.
+- Added CLI and environment support for route targeting through
+  `--include-route` and `LATENCY_LAB_INCLUDE_ROUTES`.
+
+### Documentation
+
+- Restructured the README around adoption-focused quick starts, testing
+  recipes, and developer fit before API details.
+- Moved the exhaustive API reference into `docs/api.md` and included docs in
+  the published package.
+- Added Node.js, TypeScript subpath import, Vitest/Jest teardown, Hono edge
+  behavior, preset, and wall-clock wave timing guidance.
+- Added CI, coverage, and bundle-size badges plus direct project links.
+
 ## [1.2.3] - 2026-06-21
 
 ### Fixed

@@ -2,7 +2,12 @@
  * Hono middleware adapter for latency-lab.
  */
 
-import { decideChaos, isExcluded, sleep, validateChaosOptions } from './core.js';
+import {
+  decideChaos,
+  selectChaosOptionsForPath,
+  sleep,
+  validateMiddlewareOptions,
+} from './core.js';
 import type { MiddlewareOptions } from './types.js';
 
 /** Structural subset of HonoRequest used by the adapter. */
@@ -45,19 +50,16 @@ function buildErrorResponse(statusCode: number, headers?: HeadersInit): Response
  * app.use('*', honoChaos(presets.slow3g));
  */
 export function honoChaos(options: MiddlewareOptions): HonoMiddleware {
-  const validated = validateChaosOptions(options);
-  const excludeRoutes: readonly string[] = options.excludeRoutes ?? [];
+  const resolved = validateMiddlewareOptions(options);
 
   return async (context, next): Promise<Response | void> => {
-    if (
-      excludeRoutes.length > 0 &&
-      isExcluded(context.req.path, excludeRoutes)
-    ) {
+    const chaos = selectChaosOptionsForPath(context.req.path, resolved);
+    if (chaos === null) {
       await next();
       return;
     }
 
-    const decision = decideChaos(validated);
+    const decision = decideChaos(chaos);
     await sleep(decision.delay);
 
     if (decision.outcome === 'tcp-drop') {

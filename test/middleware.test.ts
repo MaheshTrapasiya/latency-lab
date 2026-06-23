@@ -252,6 +252,85 @@ describe('chaosMiddleware', () => {
     expect(res._statusCode).toBe(503);
   });
 
+  it('uses includeRoutes as an allow-list', async () => {
+    const middleware = chaosMiddleware({
+      ...alwaysFailHttpOptions,
+      includeRoutes: ['/api'],
+    });
+    const healthReq = mockReq('/health');
+    const healthRes = mockRes();
+    const next = vi.fn();
+
+    const skipped = new Promise<void>((resolve) => {
+      middleware(healthReq, healthRes, (...args) => {
+        next(...args);
+        resolve();
+      });
+    });
+
+    await skipped;
+    expect(next).toHaveBeenCalledOnce();
+    expect(healthRes._statusCode).toBe(200);
+
+    const apiReq = mockReq('/api/users');
+    const apiRes = mockRes();
+    const failed = new Promise<void>((resolve) => {
+      setImmediate(resolve);
+      middleware(apiReq, apiRes, next);
+    });
+
+    await vi.runAllTimersAsync();
+    await failed;
+
+    expect(apiRes._statusCode).toBe(503);
+  });
+
+  it('applies per-route chaos overrides before the default config', async () => {
+    const middleware = chaosMiddleware({
+      ...zeroFailureOptions,
+      routes: [
+        { match: '/api/payments', chaos: alwaysFailHttpOptions },
+      ],
+    });
+    const req = mockReq('/api/payments/charge');
+    const res = mockRes();
+    const next = vi.fn();
+
+    const p = new Promise<void>((resolve) => {
+      setImmediate(resolve);
+      middleware(req, res, next);
+    });
+
+    await vi.runAllTimersAsync();
+    await p;
+    await Promise.resolve();
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res._statusCode).toBe(503);
+  });
+
+  it('lets per-route false bypass chaos', async () => {
+    const middleware = chaosMiddleware({
+      ...alwaysFailHttpOptions,
+      routes: [{ match: /^\/api\/public/, chaos: false }],
+    });
+    const req = mockReq('/api/public/status');
+    const res = mockRes();
+    const next = vi.fn();
+
+    const p = new Promise<void>((resolve) => {
+      middleware(req, res, (...args) => {
+        next(...args);
+        resolve();
+      });
+    });
+
+    await p;
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res._statusCode).toBe(200);
+  });
+
   it('respects baseDelay by sleeping before forwarding', async () => {
     const opts: MiddlewareOptions = {
       ...zeroFailureOptions,
@@ -431,6 +510,48 @@ describe('withChaos', () => {
 
     expect(handler).not.toHaveBeenCalled();
     expect(res.status).toBe(503);
+  });
+
+  it('uses includeRoutes as an allow-list', async () => {
+    const handler = vi.fn().mockResolvedValue(mockNextRes(200)) as (
+      req: NextRequestLike,
+    ) => Promise<NextResponseLike>;
+    const wrapped = withChaos(handler, {
+      ...alwaysFailHttpOptions,
+      includeRoutes: ['/api'],
+    });
+
+    const skipped = await wrapped(mockNextReq('https://example.com/health'));
+    expect(handler).toHaveBeenCalledOnce();
+    expect(skipped.status).toBe(200);
+
+    const p = wrapped(mockNextReq('https://example.com/api/users'));
+    await vi.runAllTimersAsync();
+    const failed = await p;
+
+    expect(failed.status).toBe(503);
+  });
+
+  it('applies per-route overrides and bypasses', async () => {
+    const handler = vi.fn().mockResolvedValue(mockNextRes(200)) as (
+      req: NextRequestLike,
+    ) => Promise<NextResponseLike>;
+    const wrapped = withChaos(handler, {
+      ...zeroFailureOptions,
+      routes: [
+        { match: '/api/payments', chaos: alwaysFailHttpOptions },
+        { match: '/api/public', chaos: false },
+      ],
+    });
+
+    const failedPromise = wrapped(mockNextReq('https://example.com/api/payments'));
+    await vi.runAllTimersAsync();
+    const failed = await failedPromise;
+    const skipped = await wrapped(mockNextReq('https://example.com/api/public'));
+
+    expect(failed.status).toBe(503);
+    expect(skipped.status).toBe(200);
+    expect(handler).toHaveBeenCalledOnce();
   });
 
   it('propagates the context argument to the original handler', async () => {

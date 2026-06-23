@@ -2,6 +2,9 @@ import { ChaosConfigError } from './types.js';
 import type {
   ChaosDecision,
   ChaosOptions,
+  MiddlewareOptions,
+  RouteChaosConfig,
+  RouteMatcher,
   ResolvedFailureType,
 } from './types.js';
 
@@ -207,6 +210,77 @@ export function resolveFailureType(options: ChaosOptions): ResolvedFailureType {
   return options.failureType;
 }
 
+interface ResolvedRouteChaosConfig {
+  readonly match: RouteMatcher;
+  readonly chaos: ChaosOptions | false;
+}
+
+export interface ResolvedMiddlewareOptions {
+  readonly defaultChaos: ChaosOptions;
+  readonly includeRoutes: readonly RouteMatcher[];
+  readonly excludeRoutes: readonly RouteMatcher[];
+  readonly routes: readonly ResolvedRouteChaosConfig[];
+}
+
+function isRouteMatcher(value: unknown): value is RouteMatcher {
+  return typeof value === 'string' || value instanceof RegExp;
+}
+
+function validateRouteMatchers(
+  value: unknown,
+  name: string,
+): readonly RouteMatcher[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new ChaosConfigError(`MiddlewareOptions.${name} must be an array.`);
+  }
+  for (const matcher of value) {
+    if (!isRouteMatcher(matcher)) {
+      throw new ChaosConfigError(
+        `MiddlewareOptions.${name} entries must be strings or RegExp instances.`,
+      );
+    }
+  }
+  return value as readonly RouteMatcher[];
+}
+
+function validateRouteConfigs(value: unknown): readonly ResolvedRouteChaosConfig[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new ChaosConfigError('MiddlewareOptions.routes must be an array.');
+  }
+
+  return value.map((entry: unknown, index: number): ResolvedRouteChaosConfig => {
+    if (entry === null || typeof entry !== 'object') {
+      throw new ChaosConfigError(
+        `MiddlewareOptions.routes[${index}] must be an object.`,
+      );
+    }
+    const route = entry as RouteChaosConfig;
+    if (!isRouteMatcher(route.match)) {
+      throw new ChaosConfigError(
+        `MiddlewareOptions.routes[${index}].match must be a string or RegExp.`,
+      );
+    }
+    if (route.chaos === false) {
+      return { match: route.match, chaos: false };
+    }
+    return { match: route.match, chaos: validateChaosOptions(route.chaos) };
+  });
+}
+
+export function validateMiddlewareOptions(
+  options: MiddlewareOptions,
+): ResolvedMiddlewareOptions {
+  const raw = options as unknown as Record<string, unknown>;
+  return {
+    defaultChaos: validateChaosOptions(options),
+    includeRoutes: validateRouteMatchers(raw['includeRoutes'], 'includeRoutes'),
+    excludeRoutes: validateRouteMatchers(raw['excludeRoutes'], 'excludeRoutes'),
+    routes: validateRouteConfigs(raw['routes']),
+  };
+}
+
 /** Resolves the complete chaos outcome for one request. */
 export function decideChaos(options: ChaosOptions): ChaosDecision {
   const delay = calculateDelay(options);
@@ -246,8 +320,17 @@ export function sleep(ms: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Route exclusion helper
+// Route matching helpers
 // ---------------------------------------------------------------------------
+
+function routeMatches(pathname: string, matcher: RouteMatcher): boolean {
+  if (typeof matcher === 'string') {
+    return pathname.startsWith(matcher);
+  }
+
+  matcher.lastIndex = 0;
+  return matcher.test(pathname);
+}
 
 /**
  * Returns `true` if the given URL path matches any of the excluded route
@@ -257,14 +340,43 @@ export function sleep(ms: number): Promise<void> {
  * prefix is not required — `/health` excludes `/health`, `/health/`, and
  * `/health/check`.
  *
- * @param pathname    - The incoming request path (e.g. `/api/users`).
- * @param excludeRoutes - Array of path prefixes to exclude.
+ * @param pathname      - The incoming request path (e.g. `/api/users`).
+ * @param excludeRoutes - Array of path prefixes or regular expressions.
  */
-export function isExcluded(pathname: string, excludeRoutes: readonly string[]): boolean {
-  return excludeRoutes.some((prefix) => {
-    if (pathname === prefix) return true;
-    // Ensure we match the prefix at a path boundary
-    return pathname.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`) ||
-      pathname.startsWith(prefix);
-  });
+export function isExcluded(
+  pathname: string,
+  excludeRoutes: readonly RouteMatcher[],
+): boolean {
+  return excludeRoutes.some((matcher) => routeMatches(pathname, matcher));
+}
+
+export function isIncluded(
+  pathname: string,
+  includeRoutes: readonly RouteMatcher[],
+): boolean {
+  return includeRoutes.some((matcher) => routeMatches(pathname, matcher));
+}
+
+export function selectChaosOptionsForPath(
+  pathname: string,
+  options: ResolvedMiddlewareOptions,
+): ChaosOptions | null {
+  if (isExcluded(pathname, options.excludeRoutes)) {
+    return null;
+  }
+
+  for (const route of options.routes) {
+    if (routeMatches(pathname, route.match)) {
+      return route.chaos === false ? null : route.chaos;
+    }
+  }
+
+  if (
+    options.includeRoutes.length > 0 &&
+    !isIncluded(pathname, options.includeRoutes)
+  ) {
+    return null;
+  }
+
+  return options.defaultChaos;
 }

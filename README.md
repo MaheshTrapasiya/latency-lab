@@ -1,46 +1,50 @@
 # latency-lab
 
-> TypeScript network latency simulator and HTTP fault-injection toolkit for
-> Node.js, browsers, APIs, framework middleware, and zero-code proxy testing.
+> Test how your app behaves under bad networks without touching infrastructure.
 
 [![npm version](https://img.shields.io/npm/v/latency-lab.svg)](https://www.npmjs.com/package/latency-lab)
+[![CI](https://github.com/MaheshTrapasiya/latency-lab/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/MaheshTrapasiya/latency-lab/actions/workflows/npm-publish.yml)
+[![Coverage](https://img.shields.io/badge/coverage-100%25%20statements-brightgreen.svg)](https://github.com/MaheshTrapasiya/latency-lab)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/latency-lab)](https://bundlephobia.com/package/latency-lab)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](#)
 
-`latency-lab` helps developers test how applications behave under slow,
-unreliable, or unavailable networks. It supports outbound Fetch interception,
-Express, Next.js, Fastify, and Hono middleware, plus an HTTP/HTTPS reverse proxy
-that works with applications written in any language.
+`latency-lab` is a TypeScript network latency simulator and HTTP fault-injection
+toolkit for Fetch, Express, Next.js, Fastify, Hono, and zero-code proxy testing.
 
-Unlike a simple `setTimeout` wrapper, it models real-world degraded network
-conditions: sine-wave quality fluctuations, bursty jitter, probabilistic packet
-loss, TCP-level connection drops, and HTTP error injection - all composable,
-typed, and dependency-free at runtime.
+It helps you test slow APIs, flaky Wi-Fi, third-party outages, retry logic,
+timeouts, and degraded mobile networks without touching infrastructure or
+adding runtime dependencies.
 
-| Goal | Use |
+## Who is this for?
+
+| You are... | Use latency-lab to... |
 |---|---|
-| Degrade outgoing API calls | `createChaosFetch()` or `installFetchChaos()` |
-| Test a Node.js server | Express, Next.js, Fastify, or Hono adapter |
-| Test without changing application code | `npx latency-lab --target ...` |
-| Reproduce realistic network conditions | Built-in presets such as `slow3g` |
-
----
+| A frontend developer | test loading, timeout, retry, and offline UX against degraded APIs |
+| A backend developer | test retries, circuit breakers, idempotency, and error handling |
+| A QA or CI engineer | run resilience checks against real services before merging |
+| A platform team | reproduce network incidents locally without changing infra |
+| A library author | verify clients behave correctly under latency and failures |
 
 ## Why latency-lab?
 
-| Feature | Simple delay | latency-lab |
-|---|---|---|
-| Base delay | ✅ | ✅ |
-| Random jitter | ❌ | ✅ |
-| Wave fluctuations | ❌ | ✅ |
-| Packet loss / TCP drop | ❌ | ✅ |
-| HTTP error injection | ❌ | ✅ |
-| Route exclusions | ❌ | ✅ |
-| Typed presets | ❌ | ✅ |
-| Zero runtime deps | ✅ | ✅ |
+Unlike a simple `setTimeout` wrapper, `latency-lab` models real-world degraded
+network conditions: base latency, bursty jitter, sine-wave quality changes,
+probabilistic packet loss, TCP-style drops, and HTTP error injection.
 
----
+| Feature | Simple delay | latency-lab |
+|---|---:|---:|
+| Base delay | Yes | Yes |
+| Random jitter | No | Yes |
+| Wave fluctuations | No | Yes |
+| Packet loss / TCP drop | No | Yes |
+| HTTP error injection | No | Yes |
+| Route include/exclude filters | No | Yes |
+| Per-route chaos config | No | Yes |
+| Fetch URL filters | No | Yes |
+| Typed presets | No | Yes |
+| Zero runtime dependencies | Yes | Yes |
 
 ## Installation
 
@@ -52,23 +56,22 @@ pnpm add -D latency-lab
 yarn add -D latency-lab
 ```
 
-Peer dependencies (install only what you need):
+Requirements:
+
+- Node.js 18 or newer.
+- TypeScript users should use `moduleResolution: "Bundler"`, `"Node16"`, or
+  `"NodeNext"` for subpath imports such as `latency-lab/fetch` and
+  `latency-lab/fastify`.
+- Browser-facing Fetch helpers do not import Node.js modules.
+
+Peer dependencies are optional. Install only the framework adapter you use:
 
 ```bash
-# For Express
 npm install express
-
-# For Next.js
 npm install next
-
-# For Fastify
 npm install fastify
-
-# For Hono
 npm install hono
 ```
-
----
 
 ## Quick Start
 
@@ -80,18 +83,14 @@ import { chaosMiddleware, presets } from 'latency-lab';
 
 const app = express();
 
-// Use a preset
-app.use(chaosMiddleware(presets.flakyCafeWifi));
-
-// Or configure manually
 app.use(chaosMiddleware({
-  baseDelay: 200,
-  jitter: 80,
-  wavePeriod: 30,
-  failureRate: 0.05,
-  failureType: 'random',
-  errorCodes: [500, 502, 503],
+  ...presets.flakyCafeWifi,
+  includeRoutes: ['/api'],
   excludeRoutes: ['/health', '/metrics'],
+  routes: [
+    { match: '/api/payments', chaos: presets.subwayTunnel },
+    { match: '/api/public', chaos: false },
+  ],
 }));
 
 app.listen(3000);
@@ -131,6 +130,10 @@ const app = new Hono();
 app.use('*', honoChaos(presets.mobileDataRoaming));
 ```
 
+Hono can run on edge runtimes where true socket destruction is unavailable. In
+that case `tcp-drop` is represented as a marked `503` response instead of a real
+connection reset.
+
 ### Outbound Fetch
 
 ```ts
@@ -167,8 +170,8 @@ npx latency-lab \
   --preset flakyCafeWifi
 ```
 
-Send requests to `http://127.0.0.1:4000`; the proxy forwards them to the
-target after applying chaos. Use `--quiet` to disable per-request logs.
+Send requests to `http://127.0.0.1:4000`; the proxy forwards them to the target
+after applying chaos. Use `--quiet` to disable per-request logs.
 
 CLI flags override matching environment variables:
 
@@ -177,11 +180,10 @@ LATENCY_LAB_TARGET=http://localhost:3000
 LATENCY_LAB_PORT=4000
 LATENCY_LAB_PRESET=slow3g
 LATENCY_LAB_FAILURE_RATE=0.1
+LATENCY_LAB_INCLUDE_ROUTES=/api
 LATENCY_LAB_EXCLUDE_ROUTES=/health,/metrics
 npx latency-lab
 ```
-
----
 
 ## Common Testing Recipes
 
@@ -196,7 +198,6 @@ import { createChaosFetch } from 'latency-lab/fetch';
 const outageFetch = createChaosFetch({
   baseDelay: 0,
   jitter: 0,
-  wavePeriod: 0,
   failureRate: 1,
   failureType: 'http-error',
   errorCodes: [503],
@@ -214,7 +215,6 @@ import { createChaosFetch } from 'latency-lab/fetch';
 const slowFetch = createChaosFetch({
   baseDelay: 2_000,
   jitter: 0,
-  wavePeriod: 0,
   failureRate: 0,
   failureType: 'http-error',
   errorCodes: [503],
@@ -223,6 +223,34 @@ const slowFetch = createChaosFetch({
 
 Fetch abort signals remain active during the injected delay, so application
 timeouts can be tested directly.
+
+### Use Fetch chaos in Vitest
+
+```ts
+import { afterEach, beforeEach, expect, test } from 'vitest';
+import { installFetchChaos, presets } from 'latency-lab/fetch';
+
+let chaos: ReturnType<typeof installFetchChaos>;
+
+beforeEach(() => {
+  chaos = installFetchChaos({
+    ...presets.flakyCafeWifi,
+    includeUrls: ['https://api.example.com/'],
+  });
+});
+
+afterEach(() => {
+  chaos.restore();
+});
+
+test('shows a retry state when the API is slow', async () => {
+  const response = await fetch('https://api.example.com/users');
+  expect(response).toBeDefined();
+});
+```
+
+For Jest, use the same `installFetchChaos()` and `restore()` pattern in
+`beforeEach` and `afterEach`.
 
 ### Test any local service without code changes
 
@@ -234,7 +262,37 @@ npx latency-lab --target http://localhost:3000 --port 4000 --preset slow3g
 
 Point tests at `http://127.0.0.1:4000` instead of the original service port.
 
----
+### Keep snapshot and timing tests stable
+
+`wavePeriod` uses wall-clock time. For deterministic tests, omit `wavePeriod`
+and set `jitter: 0` when you need a fixed delay.
+
+### Apply chaos only to selected routes
+
+Use `includeRoutes` when you want health checks and static assets to stay fast
+while API routes degrade:
+
+```ts
+app.use(chaosMiddleware({
+  ...presets.slow3g,
+  includeRoutes: ['/api'],
+  excludeRoutes: ['/api/health'],
+}));
+```
+
+For different behavior per path, use `routes`. Entries are checked in order
+after `excludeRoutes`; `chaos: false` bypasses a route explicitly.
+
+```ts
+app.use(chaosMiddleware({
+  ...presets.flakyCafeWifi,
+  routes: [
+    { match: '/api/payments', chaos: presets.subwayTunnel },
+    { match: /^\/api\/search(?:\/|$)/, chaos: presets.congestedStadium },
+    { match: '/api/health', chaos: false },
+  ],
+}));
+```
 
 ## Presets
 
@@ -242,7 +300,8 @@ Ready-to-use network profiles:
 
 ### `presets.subwayTunnel`
 
-Sudden quality drops with intermittent total blackouts. High jitter, moderate loss.
+Sudden quality drops with intermittent blackouts. Useful for testing hard
+disconnects and mobile clients moving through poor coverage.
 
 ```ts
 {
@@ -257,7 +316,8 @@ Sudden quality drops with intermittent total blackouts. High jitter, moderate lo
 
 ### `presets.flakyCafeWifi`
 
-Unpredictable café Wi-Fi — mostly works, occasionally terrible.
+Unpredictable cafe Wi-Fi: mostly usable, with occasional bursts of bad latency
+and mixed failure types.
 
 ```ts
 {
@@ -272,7 +332,8 @@ Unpredictable café Wi-Fi — mostly works, occasionally terrible.
 
 ### `presets.slow3g`
 
-Classic slow 3G — high latency, low jitter, low failure rate.
+Classic slow 3G: high latency, low jitter, and low failure rate. Good for
+testing loading states and timeout thresholds.
 
 ```ts
 {
@@ -287,7 +348,8 @@ Classic slow 3G — high latency, low jitter, low failure rate.
 
 ### `presets.congestedStadium`
 
-Stadium network — extremely variable, high congestion loss.
+Event venue congestion: extremely variable latency, rapid quality swings, and
+frequent failures.
 
 ```ts
 {
@@ -300,294 +362,115 @@ Stadium network — extremely variable, high congestion loss.
 }
 ```
 
----
+### `presets.satelliteLink`
 
-## Express Examples
-
-### Basic setup
-
-```ts
-import express from 'express';
-import { chaosMiddleware } from 'latency-lab';
-
-const app = express();
-
-app.use(chaosMiddleware({
-  baseDelay: 300,
-  jitter: 150,
-  failureRate: 0.1,
-  failureType: 'http-error',
-  errorCodes: [500, 503],
-}));
-```
-
-### Excluding routes
+Stable but inherently high-latency satellite internet. Useful for testing apps
+that assume low round-trip time.
 
 ```ts
-app.use(chaosMiddleware({
-  baseDelay: 200,
+{
+  baseDelay: 600,
   jitter: 50,
-  failureRate: 0.05,
-  failureType: 'random',
-  errorCodes: [503],
-  excludeRoutes: ['/health', '/ready', '/_internal'],
-}));
-```
-
-### Conditional activation
-
-```ts
-if (process.env.CHAOS_ENABLED === 'true') {
-  app.use(chaosMiddleware(presets.flakyCafeWifi));
-}
-```
-
----
-
-## Next.js Examples
-
-### App Router — single route
-
-```ts
-// app/api/posts/route.ts
-import { withChaos } from 'latency-lab/next';
-import { NextRequest, NextResponse } from 'next/server';
-
-async function GET(_req: NextRequest): Promise<NextResponse> {
-  const posts = await db.posts.findAll();
-  return NextResponse.json(posts);
-}
-
-export const GET = withChaos(GET, {
-  baseDelay: 300,
-  jitter: 100,
-  failureRate: 0.05,
+  wavePeriod: 120,
+  failureRate: 0.01,
   failureType: 'http-error',
-  errorCodes: [503],
-});
+  errorCodes: [408, 504],
+}
 ```
 
-### App Router — route exclusions
+### `presets.mobileDataRoaming`
+
+International roaming: medium base latency with random bursts and mixed HTTP or
+TCP-style failures.
 
 ```ts
-export const GET = withChaos(GET, {
-  ...presets.slow3g,
+{
+  baseDelay: 250,
+  jitter: 350,
+  wavePeriod: 15,
+  failureRate: 0.08,
+  failureType: 'random',
+  errorCodes: [408, 429, 502, 503, 504],
+}
+```
+
+### `presets.corpVPN`
+
+Corporate VPN conditions: moderate consistent latency with occasional abrupt
+connection loss.
+
+```ts
+{
+  baseDelay: 120,
+  jitter: 80,
+  wavePeriod: 45,
+  failureRate: 0.03,
+  failureType: 'tcp-drop',
+  errorCodes: [502, 503, 504],
+}
+```
+
+## Core API
+
+Most applications only need one of these entry points:
+
+| API | Import from | Use it for |
+|---|---|---|
+| `chaosMiddleware()` | `latency-lab` or `latency-lab/express` | Express and Connect-compatible servers |
+| `withChaos()` | `latency-lab/next` | Next.js App Router handlers |
+| `fastifyChaos()` | `latency-lab/fastify` | Fastify `onRequest` hooks |
+| `honoChaos()` | `latency-lab/hono` | Hono middleware, including edge-style runtimes |
+| `createChaosFetch()` | `latency-lab/fetch` | Outbound Fetch calls without touching global state |
+| `installFetchChaos()` | `latency-lab/fetch` | Test setup that temporarily intercepts `globalThis.fetch` |
+| `npx latency-lab` | package binary | Proxy any HTTP service without code changes |
+
+See the full [API reference](docs/api.md) for core helpers, types, CLI
+environment variables, and adapter details.
+
+## Route Targeting
+
+Framework middleware and the CLI proxy support route-level targeting:
+
+```ts
+import { presets, type ChaosScenario } from 'latency-lab';
+
+const checkoutChaos: ChaosScenario = {
+  name: 'checkout-resilience',
+  description: 'Stress checkout dependencies without slowing health checks',
+  chaos: presets.flakyCafeWifi,
+  includeRoutes: ['/api'],
   excludeRoutes: ['/api/health'],
-});
+  routes: [
+    { match: '/api/payments', chaos: presets.subwayTunnel },
+    { match: '/api/catalog', chaos: false },
+  ],
+};
 ```
 
----
+String route matchers use prefix matching. Programmatic APIs also accept regular
+expressions. `excludeRoutes` always wins, then `routes`, then `includeRoutes`,
+then the default chaos options.
 
-## API Reference
+## TypeScript Notes
 
-### `calculateDelay(options: ChaosOptions): number`
-
-Returns the computed delay in milliseconds for a single request.
-
-The formula is:
-
-```
-delay = baseDelay + randomJitter + waveFluctuation
-```
-
-- **randomJitter**: uniform random in `[-jitter, +jitter]`
-- **waveFluctuation**: `sin(now/1000 * 2π/wavePeriod) * jitter * 0.5` (zero when `wavePeriod` is omitted)
-- Final value clamped to `≥ 0`
-
----
-
-### `shouldFail(options: ChaosOptions): boolean`
-
-Returns `true` with probability equal to `options.failureRate`.
-
-```ts
-shouldFail({ failureRate: 0.1, ... }) // ~10% chance
-```
-
----
-
-### `pickErrorCode(options: ChaosOptions): number`
-
-Returns a randomly chosen HTTP status code from `options.errorCodes`.
-
-Throws `ChaosConfigError` if the array is empty.
-
----
-
-### `resolveFailureType(options: ChaosOptions): ResolvedFailureType`
-
-When `failureType` is `'random'`, randomly picks between `'http-error'` and `'tcp-drop'`. Otherwise returns the configured type.
-
----
-
-### `decideChaos(options: ChaosOptions): ChaosDecision`
-
-Resolves the delay and final outcome for one request. The result is a
-discriminated union with an `outcome` of `'pass'`, `'http-error'`, or
-`'tcp-drop'`.
-
----
-
-### `sleep(ms: number): Promise<void>`
-
-Non-blocking async sleep using `setTimeout`.
-
----
-
-### `validateChaosOptions(options: unknown): ChaosOptions`
-
-Validates a chaos configuration object. Throws `ChaosConfigError` on invalid input.
-
----
-
-### `chaosMiddleware(options: MiddlewareOptions): ConnectMiddleware`
-
-Returns an Express/Connect-compatible middleware function.
+`latency-lab` ships ESM, CommonJS, and declaration files for every subpath
+export:
 
 ```ts
 import { chaosMiddleware } from 'latency-lab';
-
-app.use(chaosMiddleware({
-  baseDelay: 200,
-  jitter: 80,
-  failureRate: 0.05,
-  failureType: 'http-error',
-  errorCodes: [503],
-  excludeRoutes: ['/health'],
-}));
+import { createChaosFetch } from 'latency-lab/fetch';
+import { fastifyChaos } from 'latency-lab/fastify';
 ```
 
----
-
-### `withChaos(handler, options): typeof handler`
-
-Wraps a Next.js App Router handler with chaos injection.
-
-```ts
-import { withChaos } from 'latency-lab/next';
-
-export const GET = withChaos(myGetHandler, presets.slow3g);
-```
-
----
-
-### `fastifyChaos(options: MiddlewareOptions): FastifyOnRequestHook`
-
-Creates an async Fastify `onRequest` hook.
-
-```ts
-app.addHook('onRequest', fastifyChaos(presets.flakyCafeWifi));
-```
-
----
-
-### `honoChaos(options: MiddlewareOptions): HonoMiddleware`
-
-Creates Hono middleware. TCP drops are represented by a marked 503 response
-because edge runtimes do not expose the underlying socket.
-
-```ts
-app.use('*', honoChaos(presets.slow3g));
-```
-
----
-
-### `createChaosFetch(options, fetchImpl?): typeof fetch`
-
-Creates a Fetch-compatible wrapper for outbound requests. HTTP failures return
-a marked JSON `Response`; TCP drops reject with `ChaosFetchError`.
-
-`includeUrls` and `excludeUrls` accept URL-prefix strings or regular
-expressions. All valid URLs are included by default and exclusions take
-precedence.
-
----
-
-### `installFetchChaos(options): FetchChaosInstallation`
-
-Installs Fetch chaos on `globalThis.fetch` and returns an object containing
-the installed `fetch` function and an idempotent `restore()` method.
-
----
-
-### CLI environment variables
-
-| Variable | Purpose |
-|---|---|
-| `LATENCY_LAB_TARGET` | Required upstream HTTP/HTTPS URL |
-| `LATENCY_LAB_HOST` | Listen host, default `127.0.0.1` |
-| `LATENCY_LAB_PORT` | Listen port, default `4000` |
-| `LATENCY_LAB_PRESET` | Built-in preset name |
-| `LATENCY_LAB_BASE_DELAY` | Base delay override |
-| `LATENCY_LAB_JITTER` | Jitter override |
-| `LATENCY_LAB_WAVE_PERIOD` | Wave period override |
-| `LATENCY_LAB_FAILURE_RATE` | Failure probability override |
-| `LATENCY_LAB_FAILURE_TYPE` | `http-error`, `tcp-drop`, or `random` |
-| `LATENCY_LAB_ERROR_CODES` | Comma-separated status codes |
-| `LATENCY_LAB_EXCLUDE_ROUTES` | Comma-separated route prefixes |
-| `LATENCY_LAB_QUIET` | `true`/`false` request logging control |
-
----
-
-### `ChaosOptions`
-
-```ts
-interface ChaosOptions {
-  /** Base latency in milliseconds. Must be ≥ 0. */
-  baseDelay: number;
-  /** Maximum jitter added/subtracted from baseDelay. Must be ≥ 0. */
-  jitter: number;
-  /** Period of the sine-wave fluctuation in seconds. Optional. */
-  wavePeriod?: number;
-  /** Probability of a failure per request. Range: [0, 1]. */
-  failureRate: number;
-  /** How failures are expressed. */
-  failureType: 'http-error' | 'tcp-drop' | 'random';
-  /** Pool of HTTP status codes to pick from on failure. Must be non-empty. */
-  errorCodes: number[];
-}
-```
-
----
-
-### `MiddlewareOptions`
-
-```ts
-interface MiddlewareOptions extends ChaosOptions {
-  /** Route path prefixes to exclude from chaos injection. */
-  excludeRoutes?: string[];
-}
-```
-
----
-
-### `presets`
-
-```ts
-import { presets } from 'latency-lab';
-
-presets.subwayTunnel
-presets.flakyCafeWifi
-presets.slow3g
-presets.congestedStadium
-presets.satelliteLink
-presets.mobileDataRoaming
-presets.corpVPN
-```
-
-All preset values are `readonly` and fully typed as `ChaosOptions`.
-
----
+If TypeScript cannot resolve a subpath import, set `moduleResolution` to
+`"Bundler"`, `"Node16"`, or `"NodeNext"`. Node.js 18 or newer is required
+because Fetch support depends on the standard global Fetch API.
 
 ## FAQ
 
-**Q: Does this work in production?**
-
-No. `latency-lab` is designed for local development and CI testing. Never use it in production — it intentionally degrades request handling.
-
 **Q: Can I compose multiple presets?**
 
-Yes, using object spread:
+Yes, use object spread:
 
 ```ts
 const combined = {
@@ -599,38 +482,55 @@ const combined = {
 
 **Q: Does it buffer response bodies?**
 
-No. Delay is injected before the request reaches your handler. Response streaming is unaffected.
+No. Delay is injected before the request reaches your handler. Response
+streaming is unaffected.
 
 **Q: What does `tcp-drop` do in HTTP middleware?**
 
-True TCP drops require operating at the socket level and cannot be done cleanly inside HTTP middleware. In `latency-lab`, `tcp-drop` approximates a dropped connection by destroying the socket (`res.socket?.destroy()` in Express, returning a 503 in Next.js). The behavior is documented in each adapter.
+Express destroys the underlying socket when possible. Next.js and Hono return a
+marked `503` response where true socket destruction is not available.
 
 **Q: Does it affect WebSocket connections?**
 
-No. It only affects standard HTTP request/response cycles.
+No. It only affects standard HTTP request/response cycles. The CLI proxy rejects
+WebSocket upgrades.
 
----
+**Q: Is this safe to deploy?**
+
+`latency-lab` is designed for local development and CI testing. Do not enable it
+in production paths unless you are intentionally running a controlled resilience
+experiment.
 
 ## Performance Notes
 
-- Zero runtime overhead when `failureRate: 0` and `baseDelay: 0` and `jitter: 0`
-- Delay is implemented with `setTimeout` — no busy-waiting, no event loop blocking
-- All calculations are synchronous and O(1)
-- No memory retained per request
-- Safe under high concurrency
-
----
+- Zero runtime overhead when `failureRate: 0`, `baseDelay: 0`, and `jitter: 0`.
+- Delay is implemented with `setTimeout`; there is no busy-waiting.
+- All calculations are synchronous and O(1).
+- No request state is retained after completion.
+- Safe under high test concurrency.
 
 ## Limitations
 
-- TCP drop simulation in Express destroys the underlying socket. Some HTTP clients may retry automatically.
-- TCP drop in Next.js returns a 503 response (true socket destruction is not possible in App Router handlers).
-- Fetch interception covers the standard Fetch API, including Node's Undici-backed global Fetch, but not direct `undici.request()` calls.
-- The CLI proxy supports ordinary HTTP request/response traffic and rejects WebSocket upgrades.
-- Wave fluctuation uses wall-clock time (`Date.now()`), which means multiple concurrent requests at the same instant receive similar wave offsets (by design).
-- Route exclusion uses prefix matching. Regex patterns are not supported.
+- TCP drop simulation in Express destroys the underlying socket. Some HTTP
+  clients may retry automatically.
+- TCP drop in Next.js and Hono returns a marked `503` response where the runtime
+  does not expose the socket.
+- Fetch interception covers the standard Fetch API, including Node's
+  Undici-backed global Fetch, but not direct `undici.request()` calls.
+- The CLI proxy supports ordinary HTTP request/response traffic and rejects
+  WebSocket upgrades.
+- Wave fluctuation uses wall-clock time (`Date.now()`), which can make
+  time-sensitive tests appear variable unless `wavePeriod` is disabled.
+- String route matchers use prefix matching. Regular expressions are supported
+  in programmatic route filters, but CLI route filters are string prefixes.
 
----
+## Project Links
+
+- [GitHub repository](https://github.com/MaheshTrapasiya/latency-lab)
+- [Issues](https://github.com/MaheshTrapasiya/latency-lab/issues)
+- [Changelog](CHANGELOG.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ## Contributing
 
@@ -638,8 +538,6 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local
 setup, testing expectations, and pull request guidance. Report vulnerabilities
 privately by following [SECURITY.md](SECURITY.md).
 
----
-
 ## License
 
-MIT © Mahesh Trapasiya
+MIT (c) Mahesh Trapasiya

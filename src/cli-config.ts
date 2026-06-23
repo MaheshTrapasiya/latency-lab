@@ -32,6 +32,7 @@ const optionDefinitions = {
   'failure-rate': { type: 'string' },
   'failure-type': { type: 'string' },
   'error-codes': { type: 'string' },
+  'include-route': { type: 'string', multiple: true },
   'exclude-route': { type: 'string', multiple: true },
   quiet: { type: 'boolean', short: 'q' },
   help: { type: 'boolean', short: 'h' },
@@ -52,6 +53,7 @@ Options:
       --failure-rate <0..1>   Override failure probability
       --failure-type <type>   http-error, tcp-drop, or random
       --error-codes <list>    Comma-separated HTTP status codes
+      --include-route <path>  Route prefix to target (repeatable)
       --exclude-route <path>  Route prefix to bypass (repeatable)
   -q, --quiet                 Disable per-request logs
   -h, --help                  Show help
@@ -197,13 +199,21 @@ export function parseCliArgs(
   if (type !== undefined) chaos.failureType = parseFailureType(type);
   if (codes !== undefined) chaos.errorCodes = parseErrorCodes(codes);
 
-  const envRoutes = env['LATENCY_LAB_EXCLUDE_ROUTES'];
-  const routes =
-    values['exclude-route'] ??
-    (envRoutes === undefined
+  const envIncludeRoutes = env['LATENCY_LAB_INCLUDE_ROUTES'];
+  const includeRoutes =
+    values['include-route'] ??
+    (envIncludeRoutes === undefined
       ? undefined
-      : envRoutes.split(',').filter((route) => route.length > 0));
-  if (routes !== undefined) chaos.excludeRoutes = routes;
+      : envIncludeRoutes.split(',').filter((route) => route.length > 0));
+  if (includeRoutes !== undefined) chaos.includeRoutes = includeRoutes;
+
+  const envExcludeRoutes = env['LATENCY_LAB_EXCLUDE_ROUTES'];
+  const excludeRoutes =
+    values['exclude-route'] ??
+    (envExcludeRoutes === undefined
+      ? undefined
+      : envExcludeRoutes.split(',').filter((route) => route.length > 0));
+  if (excludeRoutes !== undefined) chaos.excludeRoutes = excludeRoutes;
 
   validateChaosOptions(chaos);
 

@@ -4,7 +4,12 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Socket } from 'node:net';
-import { decideChaos, isExcluded, sleep, validateChaosOptions } from './core.js';
+import {
+  decideChaos,
+  selectChaosOptionsForPath,
+  sleep,
+  validateMiddlewareOptions,
+} from './core.js';
 import type { MiddlewareOptions } from './types.js';
 
 /** Minimal Connect-compatible middleware signature. */
@@ -42,18 +47,18 @@ function sendHttpError(res: ServerResponse, statusCode: number): void {
  * Creates a Connect/Express-compatible chaos middleware.
  */
 export function chaosMiddleware(options: MiddlewareOptions): ConnectMiddleware {
-  const validated = validateChaosOptions(options);
-  const excludeRoutes: readonly string[] = options.excludeRoutes ?? [];
+  const resolved = validateMiddlewareOptions(options);
 
   return (req, res, next): void => {
     (async (): Promise<void> => {
       const pathname = req.url ?? '/';
-      if (excludeRoutes.length > 0 && isExcluded(pathname, excludeRoutes)) {
+      const chaos = selectChaosOptionsForPath(pathname, resolved);
+      if (chaos === null) {
         next();
         return;
       }
 
-      const decision = decideChaos(validated);
+      const decision = decideChaos(chaos);
       await sleep(decision.delay);
 
       if (decision.outcome === 'tcp-drop') {

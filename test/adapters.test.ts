@@ -108,6 +108,31 @@ describe('fastifyChaos', () => {
     expect(reply.body()).toBeUndefined();
   });
 
+  it('uses includeRoutes and per-route overrides', async () => {
+    const hook = fastifyChaos({
+      ...passOptions,
+      includeRoutes: ['/api'],
+      routes: [
+        { match: '/api/payments', chaos: httpFailureOptions },
+        { match: '/api/public', chaos: false },
+      ],
+    });
+
+    const healthReply = fastifyReply();
+    await hook(fastifyRequest('/health'), healthReply);
+    expect(healthReply.statusCode()).toBe(200);
+    expect(healthReply.body()).toBeUndefined();
+
+    const publicReply = fastifyReply();
+    await hook(fastifyRequest('/api/public'), publicReply);
+    expect(publicReply.statusCode()).toBe(200);
+    expect(publicReply.body()).toBeUndefined();
+
+    const paymentsReply = fastifyReply();
+    await hook(fastifyRequest('/api/payments'), paymentsReply);
+    expect(paymentsReply.statusCode()).toBe(503);
+  });
+
   it('sends the resolved HTTP error response', async () => {
     const reply = fastifyReply();
     await fastifyChaos(httpFailureOptions)(fastifyRequest(), reply);
@@ -143,6 +168,25 @@ describe('honoChaos', () => {
     })(honoContext('/health'), next);
 
     expect(next).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses includeRoutes and per-route overrides', async () => {
+    const next = vi.fn(async (): Promise<void> => {});
+    const middleware = honoChaos({
+      ...passOptions,
+      includeRoutes: ['/api'],
+      routes: [
+        { match: '/api/payments', chaos: httpFailureOptions },
+        { match: '/api/public', chaos: false },
+      ],
+    });
+
+    await middleware(honoContext('/health'), next);
+    await middleware(honoContext('/api/public'), next);
+    const response = await middleware(honoContext('/api/payments'), next);
+
+    expect(next).toHaveBeenCalledTimes(2);
+    expect(response?.status).toBe(503);
   });
 
   it('returns the resolved HTTP error response without calling next', async () => {

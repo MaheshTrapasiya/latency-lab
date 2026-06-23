@@ -22,6 +22,9 @@ export type ChaosDecision =
   | { outcome: 'http-error'; delay: number; statusCode: number }
   | { outcome: 'tcp-drop'; delay: number };
 
+/** Route matcher used by middleware-level request filters. */
+export type RouteMatcher = string | RegExp;
+
 /**
  * Core chaos configuration.
  *
@@ -82,14 +85,61 @@ export interface ChaosOptions {
  */
 export interface MiddlewareOptions extends ChaosOptions {
   /**
-   * List of URL path prefixes that should bypass chaos injection entirely.
+   * Optional allow-list of URL path prefixes or regular expressions.
    *
-   * Matching is prefix-based and case-sensitive.
+   * When provided, chaos is applied only to matching routes unless a `routes`
+   * override matches first. `excludeRoutes` always wins.
+   *
+   * Matching is prefix-based for strings and case-sensitive.
+   *
+   * @example
+   * includeRoutes: ['/api']
+   */
+  includeRoutes?: RouteMatcher[];
+
+  /**
+   * List of URL path prefixes or regular expressions that should bypass chaos
+   * injection entirely.
+   *
+   * Matching is prefix-based for strings and case-sensitive.
    *
    * @example
    * excludeRoutes: ['/health', '/metrics', '/_next']
    */
-  excludeRoutes?: string[];
+  excludeRoutes?: RouteMatcher[];
+
+  /**
+   * Per-route overrides checked before the default chaos options.
+   *
+   * Use `chaos: false` to explicitly bypass a matched route.
+   */
+  routes?: RouteChaosConfig[];
+}
+
+/** Per-route chaos override for middleware and proxy adapters. */
+export interface RouteChaosConfig {
+  /** URL path prefix or regular expression to match. */
+  match: RouteMatcher;
+  /** Chaos options for this route, or `false` to bypass it. */
+  chaos: ChaosOptions | false;
+}
+
+/**
+ * Named scenario shape for team-shared latency-lab configuration files.
+ */
+export interface ChaosScenario {
+  /** Stable scenario name, suitable for config keys or CLI labels. */
+  name: string;
+  /** Optional human-readable explanation for teammates. */
+  description?: string;
+  /** Base chaos behavior for the scenario. */
+  chaos: ChaosOptions;
+  /** Optional route allow-list for the scenario. */
+  includeRoutes?: RouteMatcher[];
+  /** Optional route deny-list for the scenario. */
+  excludeRoutes?: RouteMatcher[];
+  /** Optional per-route overrides for the scenario. */
+  routes?: RouteChaosConfig[];
 }
 
 /**

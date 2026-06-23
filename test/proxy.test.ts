@@ -158,6 +158,45 @@ describe('createChaosProxy', () => {
     expect(await response.text()).toBe('upstream');
   });
 
+  it('uses includeRoutes as an allow-list', async () => {
+    const proxy = await startProxy({
+      chaos: {
+        ...passChaos,
+        failureRate: 1,
+        includeRoutes: ['/api'],
+      },
+    });
+
+    const healthResponse = await fetch(proxy.url + '/health');
+    const apiResponse = await fetch(proxy.url + '/api/users');
+
+    expect(healthResponse.status).toBe(200);
+    expect(await healthResponse.text()).toBe('upstream');
+    expect(apiResponse.status).toBe(503);
+  });
+
+  it('applies per-route chaos overrides and bypasses', async () => {
+    const proxy = await startProxy({
+      chaos: {
+        ...passChaos,
+        routes: [
+          {
+            match: '/api/payments',
+            chaos: { ...passChaos, failureRate: 1 },
+          },
+          { match: '/api/public', chaos: false },
+        ],
+      },
+    });
+
+    const paymentsResponse = await fetch(proxy.url + '/api/payments');
+    const publicResponse = await fetch(proxy.url + '/api/public');
+
+    expect(paymentsResponse.status).toBe(503);
+    expect(publicResponse.status).toBe(200);
+    expect(await publicResponse.text()).toBe('upstream');
+  });
+
   it('destroys the client connection for TCP-drop outcomes', async () => {
     const proxy = await startProxy({
       chaos: {

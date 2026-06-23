@@ -3,7 +3,12 @@
  */
 
 import type { IncomingMessage } from 'node:http';
-import { decideChaos, isExcluded, sleep, validateChaosOptions } from './core.js';
+import {
+  decideChaos,
+  selectChaosOptionsForPath,
+  sleep,
+  validateMiddlewareOptions,
+} from './core.js';
 import type { MiddlewareOptions } from './types.js';
 
 /** Structural subset of FastifyRequest used by the adapter. */
@@ -32,18 +37,15 @@ export type FastifyOnRequestHook = (
  * app.addHook('onRequest', fastifyChaos(presets.flakyCafeWifi));
  */
 export function fastifyChaos(options: MiddlewareOptions): FastifyOnRequestHook {
-  const validated = validateChaosOptions(options);
-  const excludeRoutes: readonly string[] = options.excludeRoutes ?? [];
+  const resolved = validateMiddlewareOptions(options);
 
   return async (request, reply): Promise<void> => {
-    if (
-      excludeRoutes.length > 0 &&
-      isExcluded(request.url, excludeRoutes)
-    ) {
+    const chaos = selectChaosOptionsForPath(request.url, resolved);
+    if (chaos === null) {
       return;
     }
 
-    const decision = decideChaos(validated);
+    const decision = decideChaos(chaos);
     await sleep(decision.delay);
 
     if (decision.outcome === 'tcp-drop') {

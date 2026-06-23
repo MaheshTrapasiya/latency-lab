@@ -37,6 +37,8 @@ Node.js 18 or newer and is not intended for production traffic.
 - Inject latency and failures into incoming framework requests with an adapter.
 - Put the CLI reverse proxy in front of a local service without modifying code.
 - Use URL and route exclusions to keep health checks unaffected.
+- Use route inclusions and per-route overrides to target only selected APIs.
+- Share typed `ChaosScenario` objects across team config files.
 - Use abort signals to test timeout and cancellation behavior during delays.
 
 ## Behavioral guarantees
@@ -47,6 +49,8 @@ Node.js 18 or newer and is not intended for production traffic.
 - The CLI streams HTTP methods, request bodies, response bodies, and headers.
 - ESM, CommonJS, strict TypeScript declarations, and Node.js 18+ are supported.
 - The package has zero runtime dependencies.
+- Middleware route precedence is exclusions, per-route overrides, inclusions,
+  then the default chaos options.
 
 ## Out of scope
 

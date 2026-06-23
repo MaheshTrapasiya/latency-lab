@@ -2,7 +2,12 @@
  * Next.js App Router adapter for latency-lab.
  */
 
-import { decideChaos, isExcluded, sleep, validateChaosOptions } from './core.js';
+import {
+  decideChaos,
+  selectChaosOptionsForPath,
+  sleep,
+  validateMiddlewareOptions,
+} from './core.js';
 import type { MiddlewareOptions } from './types.js';
 
 /** Structural subset of NextRequest used by the adapter. */
@@ -57,16 +62,16 @@ export function withChaos<
   handler: NextRouteHandler<Req, Res>,
   options: MiddlewareOptions,
 ): NextRouteHandler<Req, Res> {
-  const validated = validateChaosOptions(options);
-  const excludeRoutes: readonly string[] = options.excludeRoutes ?? [];
+  const resolved = validateMiddlewareOptions(options);
 
   return async (req: Req, ctx?: unknown): Promise<Res> => {
     const pathname = pathnameFrom(req.url);
-    if (excludeRoutes.length > 0 && isExcluded(pathname, excludeRoutes)) {
+    const chaos = selectChaosOptionsForPath(pathname, resolved);
+    if (chaos === null) {
       return handler(req, ctx);
     }
 
-    const decision = decideChaos(validated);
+    const decision = decideChaos(chaos);
     await sleep(decision.delay);
 
     if (decision.outcome === 'tcp-drop') {
